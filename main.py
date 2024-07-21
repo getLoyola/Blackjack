@@ -6,6 +6,10 @@ suits = ['Hearts', 'Diamonds', 'Clubs', 'Spades']
 values = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
 values_dict = {'2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, 'J': 10, 'Q': 10, 'K': 10, 'A': 11}
 
+# Betting limits
+min_bet = 10
+max_bet = 1000
+
 # Create a deck of cards
 def create_deck(num_decks=1):
     return [{'suit': suit, 'value': value} for suit in suits for value in values] * num_decks
@@ -54,7 +58,7 @@ def insurance_bet(balance):
             print("Invalid insurance bet amount. Please enter a number.")
 
 # Player's turn
-def player_turn(deck, player_hand):
+def player_turn(deck, player_hand, bet):
     while True:
         action = input("Choose action: (H)it, (S)tand, (D)ouble Down, or (P) split: ").strip().upper()
         if action == 'H':
@@ -66,7 +70,8 @@ def player_turn(deck, player_hand):
         elif action == 'S':
             break
         elif action == 'D':
-            if len(player_hand) == 2:
+            if len(player_hand) == 2 and bet * 2 <= player_hand['balance']:
+                bet *= 2
                 player_hand.append(deal_card(deck))
                 display_hand(player_hand)
                 if calculate_hand_value(player_hand) > 21:
@@ -74,9 +79,9 @@ def player_turn(deck, player_hand):
                     return False
                 return True
             else:
-                print("Double Down can only be used with the initial hand.")
+                print("Double Down can only be used with the initial hand and sufficient balance.")
         elif action == 'P':
-            if len(player_hand) == 2:
+            if len(player_hand) == 2 and player_hand[0]['value'] == player_hand[1]['value']:
                 split_hand1 = [player_hand.pop()]
                 split_hand2 = [player_hand.pop()]
                 split_hand1.append(deal_card(deck))
@@ -87,7 +92,7 @@ def player_turn(deck, player_hand):
                 display_hand(split_hand2)
                 return split_hand1, split_hand2
             else:
-                print("Split can only be used with the initial hand.")
+                print("Split can only be used with the initial hand and matching cards.")
         else:
             print("Invalid action. Please choose 'H', 'S', 'D', or 'P'.")
     return True
@@ -110,13 +115,15 @@ def initial_game_setup(num_decks=6):
 def place_bet(balance):
     while True:
         try:
-            bet = int(input("Place your bet: "))
-            if 0 < bet <= balance:
+            bet = int(input(f"Place your bet (minimum ${min_bet}, maximum ${max_bet}): "))
+            if min_bet <= bet <= max_bet and bet <= balance:
                 return bet
             elif bet > balance:
                 print("Insufficient balance.")
-            else:
-                print("Bet must be greater than 0.")
+            elif bet < min_bet:
+                print(f"Bet must be at least ${min_bet}.")
+            elif bet > max_bet:
+                print(f"Bet cannot exceed ${max_bet}.")
         except ValueError:
             print("Invalid bet amount. Please enter a number.")
 
@@ -173,7 +180,7 @@ def play_hand(deck, player_hand, dealer_hand, bet, balance):
                 print("Player loses.")
                 return -bet
 
-    if player_turn(deck, player_hand):
+    if player_turn(deck, player_hand, bet):
         dealer_hand = dealer_turn(deck, dealer_hand)
         display_hand(dealer_hand)
         player_value = calculate_hand_value(player_hand)
@@ -193,7 +200,7 @@ def play_round(player, num_decks):
     
     split_hands = []
     if len(player_hand) == 2 and player_hand[0]['value'] == player_hand[1]['value']:
-        split_hands = player_turn(deck, player_hand)
+        split_hands = player_turn(deck, player_hand, bet)
         if split_hands:
             print("Playing split hands...")
             for hand in split_hands:
@@ -217,18 +224,18 @@ def load_game_state(filename='game_state.json'):
             data = json.load(f)
             return data['players'], data['num_decks']
     except FileNotFoundError:
-        return [{"name": "Player 1", "balance": 1000, "wins": 0, "losses": 0, "ties": 0}], 6
+        return [{"name": "Player 1", "balance": 1000, "wins": 0, "losses": 0, "ties": 0, "games_played": 0, "total_winnings": 0, "longest_win_streak": 0}], 6
 
 # Display player stats
 def display_stats(players):
     for player in players:
-        print(f"{player['name']}: Balance: ${player['balance']}, Wins: {player['wins']}, Losses: {player['losses']}, Ties: {player['ties']}")
+        print(f"{player['name']}: Balance: ${player['balance']}, Wins: {player['wins']}, Losses: {player['losses']}, Ties: {player['ties']}, Games Played: {player['games_played']}, Total Winnings: ${player['total_winnings']}, Longest Winning Streak: {player['longest_win_streak']}")
 
 # Display player rankings
 def display_rankings(players):
-    rankings = sorted(players, key=lambda x: x['wins'], reverse=True)
+    sorted_players = sorted(players, key=lambda x: (x['wins'], x['balance']), reverse=True)
     print("\nPlayer Rankings:")
-    for rank, player in enumerate(rankings, start=1):
+    for rank, player in enumerate(sorted_players, 1):
         win_rate = (player['wins'] / (player['wins'] + player['losses'] + player['ties'])) * 100 if (player['wins'] + player['losses'] + player['ties']) > 0 else 0
         print(f"{rank}. {player['name']} - Wins: {player['wins']}, Win Rate: {win_rate:.2f}%")
 
@@ -250,10 +257,30 @@ def handle_bankruptcy(player):
 def add_new_player(players):
     name = input("Enter new player's name: ").strip()
     if name:
-        players.append({"name": name, "balance": 1000, "wins": 0, "losses": 0, "ties": 0})
+        players.append({"name": name, "balance": 1000, "wins": 0, "losses": 0, "ties": 0, "games_played": 0, "total_winnings": 0, "longest_win_streak": 0})
         print(f"Player {name} added.")
     else:
         print("Invalid name.")
+
+# Remove player
+def remove_player(players):
+    name = input("Enter the name of the player to remove: ").strip()
+    players = [player for player in players if player['name'] != name]
+    print(f"Player {name} removed.")
+    return players
+
+# Update player stats
+def update_player_stats(player, result, bet):
+    player['games_played'] += 1
+    if result > 0:
+        player['wins'] += 1
+        player['total_winnings'] += result
+        player['longest_win_streak'] = max(player['longest_win_streak'], player['wins'] - player['losses'])
+    elif result < 0:
+        player['losses'] += 1
+        player['longest_win_streak'] = 0
+    else:
+        player['ties'] += 1
 
 # Main function
 def main():
@@ -270,6 +297,7 @@ def main():
 
                 print(f"\n{player['name']}'s turn:")
                 player = play_round(player, num_decks)
+                update_player_stats(player, player['balance'] - 1000, 0)  # Example update
                 save_game_state(players, num_decks)
 
                 if input("Play another round? (Y/N): ").strip().upper() != 'Y':
@@ -282,9 +310,7 @@ def main():
         elif action == 'A':
             add_new_player(players)
         elif action == 'R':
-            name = input("Enter the name of the player to remove: ").strip()
-            players = [player for player in players if player['name'] != name]
-            print(f"Player {name} removed.")
+            players = remove_player(players)
         elif action == 'C':
             while True:
                 try:
