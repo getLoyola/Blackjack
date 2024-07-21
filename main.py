@@ -182,7 +182,8 @@ def play_hand(deck, player_hand, dealer_hand, bet, balance):
     return -bet
 
 # Play a round
-def play_round(balance):
+def play_round(player):
+    balance = player['balance']
     deck, player_hand, dealer_hand = initial_game_setup()
     print(f"Your balance: ${balance}")
     bet = place_bet(balance)
@@ -200,34 +201,45 @@ def play_round(balance):
                 balance += play_hand(deck, hand, dealer_hand, bet / 2, balance)
     else:
         balance += play_hand(deck, player_hand, dealer_hand, bet, balance)
-    
-    return balance
+
+    player['balance'] = balance
+    return player
 
 # Save game state
-def save_game_state(balance, filename='game_state.json'):
+def save_game_state(players, filename='game_state.json'):
     with open(filename, 'w') as f:
-        json.dump({'balance': balance}, f)
+        json.dump(players, f)
 
 # Load game state
 def load_game_state(filename='game_state.json'):
     try:
         with open(filename, 'r') as f:
-            return json.load(f)['balance']
+            return json.load(f)
     except FileNotFoundError:
-        return 1000
+        return [{"name": "Player 1", "balance": 1000, "wins": 0, "losses": 0, "ties": 0}]
+
+# Display player stats
+def display_stats(players):
+    for player in players:
+        print(f"{player['name']}: Balance: ${player['balance']}, Wins: {player['wins']}, Losses: {player['losses']}, Ties: {player['ties']}")
 
 # Main function
 def main():
-    balance = load_game_state()
+    players = load_game_state()
     while True:
-        balance = play_round(balance)
-        if balance <= 0:
-            print("You're out of money. Game over.")
-            break
-        if input("Play another round? (Y/N): ").strip().upper() != 'Y':
-            save_game_state(balance)
-            print(f"Final balance: ${balance}")
-            break
+        for player in players:
+            print(f"\n{player['name']}'s turn:")
+            player = play_round(player)
+            if player['balance'] <= 0:
+                print(f"{player['name']} is out of money. Game over for {player['name']}.")
+                players.remove(player)
+            save_game_state(players)
+            if input("Play another round? (Y/N): ").strip().upper() != 'Y':
+                display_stats(players)
+                print("Saving game state...")
+                save_game_state(players)
+                print("Game state saved. Exiting...")
+                return
 
 if __name__ == '__main__':
     main()
