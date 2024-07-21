@@ -223,19 +223,46 @@ def display_stats(players):
     for player in players:
         print(f"{player['name']}: Balance: ${player['balance']}, Wins: {player['wins']}, Losses: {player['losses']}, Ties: {player['ties']}")
 
+# Display player rankings
+def display_rankings(players):
+    rankings = sorted(players, key=lambda x: x['wins'], reverse=True)
+    print("\nPlayer Rankings:")
+    for rank, player in enumerate(rankings, start=1):
+        win_rate = (player['wins'] / (player['wins'] + player['losses'] + player['ties'])) * 100 if (player['wins'] + player['losses'] + player['ties']) > 0 else 0
+        print(f"{rank}. {player['name']} - Wins: {player['wins']}, Win Rate: {win_rate:.2f}%")
+
+# Handle player bankruptcy
+def handle_bankruptcy(player):
+    while True:
+        action = input(f"{player['name']}, you are out of money. Would you like to reset your balance to $1000 or leave the game? (R)eset / (L)eave: ").strip().upper()
+        if action == 'R':
+            player['balance'] = 1000
+            print(f"{player['name']}'s balance has been reset to $1000.")
+            return player
+        elif action == 'L':
+            print(f"{player['name']} has left the game.")
+            return None
+        else:
+            print("Invalid action. Please choose 'R' to reset or 'L' to leave.")
+
 # Main function
 def main():
     players = load_game_state()
     while True:
         for player in players:
+            if player['balance'] <= 0:
+                player = handle_bankruptcy(player)
+                if player is None:
+                    players.remove(player)
+                    continue
+
             print(f"\n{player['name']}'s turn:")
             player = play_round(player)
-            if player['balance'] <= 0:
-                print(f"{player['name']} is out of money. Game over for {player['name']}.")
-                players.remove(player)
             save_game_state(players)
+
             if input("Play another round? (Y/N): ").strip().upper() != 'Y':
                 display_stats(players)
+                display_rankings(players)
                 print("Saving game state...")
                 save_game_state(players)
                 print("Game state saved. Exiting...")
