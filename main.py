@@ -1,4 +1,5 @@
 import random
+import json
 
 # Define card values and suits
 suits = ['Hearts', 'Diamonds', 'Clubs', 'Spades']
@@ -143,7 +144,7 @@ def evaluate_outcome(player_value, dealer_value, bet, balance, insurance_bet=0):
     return balance
 
 # Play a hand
-def play_hand(deck, player_hand, dealer_hand, bet):
+def play_hand(deck, player_hand, dealer_hand, bet, balance):
     dealer_blackjack = is_blackjack(dealer_hand)
     player_blackjack = is_blackjack(player_hand)
 
@@ -162,7 +163,7 @@ def play_hand(deck, player_hand, dealer_hand, bet):
 
     insurance = 0
     if dealer_hand[0]['value'] == 'A':
-        insurance = insurance_bet(bet // 2)
+        insurance = insurance_bet(balance // 2)
         if calculate_hand_value(dealer_hand) == 21:
             print("Dealer has Blackjack.")
             if insurance > 0:
@@ -196,21 +197,35 @@ def play_round(balance):
             print("Playing split hands...")
             for hand in split_hands:
                 print(f"Playing hand: {hand}")
-                balance += play_hand(deck, hand, dealer_hand, bet / 2)
+                balance += play_hand(deck, hand, dealer_hand, bet / 2, balance)
     else:
-        balance += play_hand(deck, player_hand, dealer_hand, bet)
+        balance += play_hand(deck, player_hand, dealer_hand, bet, balance)
     
     return balance
 
+# Save game state
+def save_game_state(balance, filename='game_state.json'):
+    with open(filename, 'w') as f:
+        json.dump({'balance': balance}, f)
+
+# Load game state
+def load_game_state(filename='game_state.json'):
+    try:
+        with open(filename, 'r') as f:
+            return json.load(f)['balance']
+    except FileNotFoundError:
+        return 1000
+
 # Main function
 def main():
-    balance = 1000
+    balance = load_game_state()
     while True:
         balance = play_round(balance)
         if balance <= 0:
             print("You're out of money. Game over.")
             break
         if input("Play another round? (Y/N): ").strip().upper() != 'Y':
+            save_game_state(balance)
             print(f"Final balance: ${balance}")
             break
 
