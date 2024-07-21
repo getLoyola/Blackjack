@@ -99,8 +99,8 @@ def dealer_turn(deck, dealer_hand):
     return dealer_hand
 
 # Initial game setup
-def initial_game_setup():
-    deck = create_deck(num_decks=6)  # Using multiple decks for more realism
+def initial_game_setup(num_decks=6):
+    deck = create_deck(num_decks=num_decks)  # Using multiple decks for more realism
     shuffle_deck(deck)
     player_hand = [deal_card(deck), deal_card(deck)]
     dealer_hand = [deal_card(deck), deal_card(deck)]
@@ -182,9 +182,9 @@ def play_hand(deck, player_hand, dealer_hand, bet, balance):
     return -bet
 
 # Play a round
-def play_round(player):
+def play_round(player, num_decks):
     balance = player['balance']
-    deck, player_hand, dealer_hand = initial_game_setup()
+    deck, player_hand, dealer_hand = initial_game_setup(num_decks)
     print(f"Your balance: ${balance}")
     bet = place_bet(balance)
     
@@ -206,17 +206,18 @@ def play_round(player):
     return player
 
 # Save game state
-def save_game_state(players, filename='game_state.json'):
+def save_game_state(players, num_decks, filename='game_state.json'):
     with open(filename, 'w') as f:
-        json.dump(players, f)
+        json.dump({'players': players, 'num_decks': num_decks}, f)
 
 # Load game state
 def load_game_state(filename='game_state.json'):
     try:
         with open(filename, 'r') as f:
-            return json.load(f)
+            data = json.load(f)
+            return data['players'], data['num_decks']
     except FileNotFoundError:
-        return [{"name": "Player 1", "balance": 1000, "wins": 0, "losses": 0, "ties": 0}]
+        return [{"name": "Player 1", "balance": 1000, "wins": 0, "losses": 0, "ties": 0}], 6
 
 # Display player stats
 def display_stats(players):
@@ -245,28 +246,62 @@ def handle_bankruptcy(player):
         else:
             print("Invalid action. Please choose 'R' to reset or 'L' to leave.")
 
+# Add new player
+def add_new_player(players):
+    name = input("Enter new player's name: ").strip()
+    if name:
+        players.append({"name": name, "balance": 1000, "wins": 0, "losses": 0, "ties": 0})
+        print(f"Player {name} added.")
+    else:
+        print("Invalid name.")
+
 # Main function
 def main():
-    players = load_game_state()
+    players, num_decks = load_game_state()
     while True:
-        for player in players:
-            if player['balance'] <= 0:
-                player = handle_bankruptcy(player)
-                if player is None:
-                    players.remove(player)
-                    continue
+        action = input("Choose action: (P)lay, (A)dd player, (R)emove player, (C)hange deck count, or (Q)uit: ").strip().upper()
+        if action == 'P':
+            for player in players:
+                if player['balance'] <= 0:
+                    player = handle_bankruptcy(player)
+                    if player is None:
+                        players.remove(player)
+                        continue
 
-            print(f"\n{player['name']}'s turn:")
-            player = play_round(player)
-            save_game_state(players)
+                print(f"\n{player['name']}'s turn:")
+                player = play_round(player, num_decks)
+                save_game_state(players, num_decks)
 
-            if input("Play another round? (Y/N): ").strip().upper() != 'Y':
-                display_stats(players)
-                display_rankings(players)
-                print("Saving game state...")
-                save_game_state(players)
-                print("Game state saved. Exiting...")
-                return
+                if input("Play another round? (Y/N): ").strip().upper() != 'Y':
+                    display_stats(players)
+                    display_rankings(players)
+                    print("Saving game state...")
+                    save_game_state(players, num_decks)
+                    print("Game state saved. Exiting...")
+                    return
+        elif action == 'A':
+            add_new_player(players)
+        elif action == 'R':
+            name = input("Enter the name of the player to remove: ").strip()
+            players = [player for player in players if player['name'] != name]
+            print(f"Player {name} removed.")
+        elif action == 'C':
+            while True:
+                try:
+                    num_decks = int(input("Enter the number of decks to use: "))
+                    if num_decks > 0:
+                        break
+                    else:
+                        print("Number of decks must be greater than 0.")
+                except ValueError:
+                    print("Invalid number. Please enter a valid number.")
+        elif action == 'Q':
+            display_stats(players)
+            display_rankings(players)
+            print("Saving game state...")
+            save_game_state(players, num_decks)
+            print("Game state saved. Exiting...")
+            return
 
 if __name__ == '__main__':
     main()
