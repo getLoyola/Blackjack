@@ -107,7 +107,7 @@ def initial_game_setup(num_decks=6):
     return deck, player_hand, dealer_hand
 
 # Betting function
-def place_bet(balance):
+def place_bet(balance, min_bet, max_bet):
     while True:
         try:
             bet = int(input(f"Place your bet (minimum ${min_bet}, maximum ${max_bet}): "))
@@ -184,11 +184,11 @@ def play_hand(deck, player_hand, dealer_hand, bet, balance):
     return -bet
 
 # Play a round
-def play_round(player, num_decks):
+def play_round(player, num_decks, min_bet, max_bet):
     balance = player['balance']
     deck, player_hand, dealer_hand = initial_game_setup(num_decks)
     print(f"Your balance: ${balance}")
-    bet = place_bet(balance)
+    bet = place_bet(balance, min_bet, max_bet)
 
     # Track bet history
     if 'bet_history' not in player:
@@ -239,7 +239,8 @@ def display_rankings(players):
     print("\nPlayer Rankings:")
     for rank, player in enumerate(sorted_players, 1):
         win_rate = (player['wins'] / (player['wins'] + player['losses'] + player['ties'])) * 100 if (player['wins'] + player['losses'] + player['ties']) > 0 else 0
-        print(f"{rank}. {player['name']} - Wins: {player['wins']}, Win Rate: {win_rate:.2f}%, Average Bet: ${sum(player['bet_history']) / len(player['bet_history']) if player['bet_history'] else 0:.2f}")
+        avg_bet = sum(player['bet_history']) / len(player['bet_history']) if player['bet_history'] else 0
+        print(f"{rank}. {player['name']} - Wins: {player['wins']}, Win Rate: {win_rate:.2f}%, Average Bet: ${avg_bet:.2f}")
 
 # Handle player bankruptcy
 def handle_bankruptcy(player):
@@ -298,7 +299,19 @@ def display_instructions():
     print("9. You can reset your balance or leave the game if you run out of money.")
     print("10. You can view player stats and rankings from the main menu.")
     print("11. Each action can be chosen during your turn: (H)it, (S)tand, (D)ouble Down, or (P) Split.")
-    print("12. Check the bet history and statistics for better strategies.\n")
+    print("12. Check the bet history and statistics for better strategies.")
+    print("13. At the end of each game, a summary of bets and outcomes will be provided.\n")
+
+# Game Summary
+def display_game_summary(players):
+    print("\nGame Summary:")
+    for player in players:
+        print(f"{player['name']}:")
+        print(f"  Total Bets: ${sum(player['bet_history'])}")
+        print(f"  Total Wins: ${player['total_winnings']}")
+        print(f"  Win-Loss Ratio: {player['wins'] / (player['losses'] + 1):.2f}")
+        print(f"  Average Hand Value: {sum(calculate_hand_value(hand) for hand in player['hand_history']) / len(player['hand_history']) if player['hand_history'] else 0:.2f}")
+        print()
 
 # Main function
 def main():
@@ -306,7 +319,7 @@ def main():
     min_bet = 10
     max_bet = 1000
     while True:
-        action = input("Choose action: (P)lay, (A)dd player, (R)emove player, (C)hange deck count, (H)elp, or (Q)uit: ").strip().upper()
+        action = input("Choose action: (P)lay, (A)dd player, (R)emove player, (C)hange deck count, (H)elp, (S)ummary, or (Q)uit: ").strip().upper()
         if action == 'P':
             for player in players:
                 if player['balance'] <= 0:
@@ -315,7 +328,7 @@ def main():
                         players.remove(player)
                         continue
                 print(f"\n{player['name']}'s turn:")
-                player = play_round(player, num_decks)
+                player = play_round(player, num_decks, min_bet, max_bet)
                 update_player_stats(player, player['balance'] - 1000, 0)  # Example update
                 save_game_state(players, num_decks)
 
@@ -342,6 +355,8 @@ def main():
                     print("Invalid number. Please enter a valid number.")
         elif action == 'H':
             display_instructions()
+        elif action == 'S':
+            display_game_summary(players)
         elif action == 'Q':
             display_stats(players)
             display_rankings(players)
