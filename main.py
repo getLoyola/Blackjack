@@ -1,14 +1,11 @@
 import random
 import json
+import os
 
 # Define card values and suits
 suits = ['Hearts', 'Diamonds', 'Clubs', 'Spades']
 values = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
 values_dict = {'2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, 'J': 10, 'Q': 10, 'K': 10, 'A': 11}
-
-# Betting limits
-min_bet = 10
-max_bet = 1000
 
 # Create a deck of cards
 def create_deck(num_decks=1):
@@ -44,23 +41,21 @@ def display_hand(hand, hide_dealer_card=False):
         print(f"Hand: {hand_str}, Value: {calculate_hand_value(hand)}")
 
 # Insurance bet
-def insurance_bet(balance):
+def insurance_bet(balance, bet):
     while True:
         try:
-            insurance = int(input("Place your insurance bet (half of your original bet): "))
-            if 0 < insurance <= balance:
+            insurance = int(input(f"Place your insurance bet (up to {bet // 2}): "))
+            if 0 <= insurance <= bet // 2:
                 return insurance
-            elif insurance > balance:
-                print("Insufficient balance.")
             else:
-                print("Insurance bet must be greater than 0.")
+                print(f"Insurance bet must be between 0 and {bet // 2}.")
         except ValueError:
             print("Invalid insurance bet amount. Please enter a number.")
 
 # Player's turn
 def player_turn(deck, player_hand, bet):
     while True:
-        action = input("Choose action: (H)it, (S)tand, (D)ouble Down, or (P) split: ").strip().upper()
+        action = input("Choose action: (H)it, (S)tand, (D)ouble Down, or (P) Split: ").strip().upper()
         if action == 'H':
             player_hand.append(deal_card(deck))
             display_hand(player_hand)
@@ -70,7 +65,7 @@ def player_turn(deck, player_hand, bet):
         elif action == 'S':
             break
         elif action == 'D':
-            if len(player_hand) == 2 and bet * 2 <= player_hand['balance']:
+            if len(player_hand) == 2:
                 bet *= 2
                 player_hand.append(deal_card(deck))
                 display_hand(player_hand)
@@ -79,7 +74,7 @@ def player_turn(deck, player_hand, bet):
                     return False
                 return True
             else:
-                print("Double Down can only be used with the initial hand and sufficient balance.")
+                print("Double Down can only be used with the initial hand.")
         elif action == 'P':
             if len(player_hand) == 2 and player_hand[0]['value'] == player_hand[1]['value']:
                 split_hand1 = [player_hand.pop()]
@@ -170,7 +165,7 @@ def play_hand(deck, player_hand, dealer_hand, bet, balance):
 
     insurance = 0
     if dealer_hand[0]['value'] == 'A':
-        insurance = insurance_bet(balance // 2)
+        insurance = insurance_bet(balance, bet)
         if calculate_hand_value(dealer_hand) == 21:
             print("Dealer has Blackjack.")
             if insurance > 0:
@@ -219,11 +214,11 @@ def save_game_state(players, num_decks, filename='game_state.json'):
 
 # Load game state
 def load_game_state(filename='game_state.json'):
-    try:
+    if os.path.exists(filename):
         with open(filename, 'r') as f:
             data = json.load(f)
             return data['players'], data['num_decks']
-    except FileNotFoundError:
+    else:
         return [{"name": "Player 1", "balance": 1000, "wins": 0, "losses": 0, "ties": 0, "games_played": 0, "total_winnings": 0, "longest_win_streak": 0}], 6
 
 # Display player stats
@@ -282,11 +277,27 @@ def update_player_stats(player, result, bet):
     else:
         player['ties'] += 1
 
+# Display game instructions
+def display_instructions():
+    print("\nGame Instructions:")
+    print("1. Place your bet.")
+    print("2. You will be dealt two cards, and the dealer will have two cards (one hidden).")
+    print("3. Choose your action: Hit (H), Stand (S), Double Down (D), or Split (P).")
+    print("4. If you choose to Double Down, your bet will be doubled.")
+    print("5. If you choose to Split, you will play two separate hands.")
+    print("6. The dealer will reveal their hidden card and draw until they reach at least 17.")
+    print("7. If your hand value is higher than the dealer's without busting, you win. If it's lower, you lose. If it's the same, it's a tie.")
+    print("8. Insurance bet is available if the dealer's face-up card is an Ace.")
+    print("9. You can reset your balance or leave the game if you run out of money.")
+    print("10. You can view player stats and rankings from the main menu.\n")
+
 # Main function
 def main():
     players, num_decks = load_game_state()
+    min_bet = 10
+    max_bet = 1000
     while True:
-        action = input("Choose action: (P)lay, (A)dd player, (R)emove player, (C)hange deck count, or (Q)uit: ").strip().upper()
+        action = input("Choose action: (P)lay, (A)dd player, (R)emove player, (C)hange deck count, (H)elp, or (Q)uit: ").strip().upper()
         if action == 'P':
             for player in players:
                 if player['balance'] <= 0:
@@ -294,7 +305,6 @@ def main():
                     if player is None:
                         players.remove(player)
                         continue
-
                 print(f"\n{player['name']}'s turn:")
                 player = play_round(player, num_decks)
                 update_player_stats(player, player['balance'] - 1000, 0)  # Example update
@@ -321,6 +331,8 @@ def main():
                         print("Number of decks must be greater than 0.")
                 except ValueError:
                     print("Invalid number. Please enter a valid number.")
+        elif action == 'H':
+            display_instructions()
         elif action == 'Q':
             display_stats(players)
             display_rankings(players)
