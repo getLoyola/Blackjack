@@ -189,10 +189,15 @@ def play_round(player, num_decks):
     deck, player_hand, dealer_hand = initial_game_setup(num_decks)
     print(f"Your balance: ${balance}")
     bet = place_bet(balance)
+
+    # Track bet history
+    if 'bet_history' not in player:
+        player['bet_history'] = []
+    player['bet_history'].append(bet)
     
     display_hand(player_hand)
     display_hand(dealer_hand, hide_dealer_card=True)
-    
+
     split_hands = []
     if len(player_hand) == 2 and player_hand[0]['value'] == player_hand[1]['value']:
         split_hands = player_turn(deck, player_hand, bet)
@@ -205,6 +210,7 @@ def play_round(player, num_decks):
         balance += play_hand(deck, player_hand, dealer_hand, bet, balance)
 
     player['balance'] = balance
+    update_player_stats(player, balance - player['balance'], bet)
     return player
 
 # Save game state
@@ -219,12 +225,13 @@ def load_game_state(filename='game_state.json'):
             data = json.load(f)
             return data['players'], data['num_decks']
     else:
-        return [{"name": "Player 1", "balance": 1000, "wins": 0, "losses": 0, "ties": 0, "games_played": 0, "total_winnings": 0, "longest_win_streak": 0}], 6
+        return [{"name": "Player 1", "balance": 1000, "wins": 0, "losses": 0, "ties": 0, "games_played": 0, "total_winnings": 0, "longest_win_streak": 0, "bet_history": []}], 6
 
 # Display player stats
 def display_stats(players):
     for player in players:
         print(f"{player['name']}: Balance: ${player['balance']}, Wins: {player['wins']}, Losses: {player['losses']}, Ties: {player['ties']}, Games Played: {player['games_played']}, Total Winnings: ${player['total_winnings']}, Longest Winning Streak: {player['longest_win_streak']}")
+        print(f"Bet History: {player['bet_history']}")
 
 # Display player rankings
 def display_rankings(players):
@@ -232,7 +239,7 @@ def display_rankings(players):
     print("\nPlayer Rankings:")
     for rank, player in enumerate(sorted_players, 1):
         win_rate = (player['wins'] / (player['wins'] + player['losses'] + player['ties'])) * 100 if (player['wins'] + player['losses'] + player['ties']) > 0 else 0
-        print(f"{rank}. {player['name']} - Wins: {player['wins']}, Win Rate: {win_rate:.2f}%")
+        print(f"{rank}. {player['name']} - Wins: {player['wins']}, Win Rate: {win_rate:.2f}%, Average Bet: ${sum(player['bet_history']) / len(player['bet_history']) if player['bet_history'] else 0:.2f}")
 
 # Handle player bankruptcy
 def handle_bankruptcy(player):
@@ -252,7 +259,7 @@ def handle_bankruptcy(player):
 def add_new_player(players):
     name = input("Enter new player's name: ").strip()
     if name:
-        players.append({"name": name, "balance": 1000, "wins": 0, "losses": 0, "ties": 0, "games_played": 0, "total_winnings": 0, "longest_win_streak": 0})
+        players.append({"name": name, "balance": 1000, "wins": 0, "losses": 0, "ties": 0, "games_played": 0, "total_winnings": 0, "longest_win_streak": 0, "bet_history": []})
         print(f"Player {name} added.")
     else:
         print("Invalid name.")
@@ -289,7 +296,9 @@ def display_instructions():
     print("7. If your hand value is higher than the dealer's without busting, you win. If it's lower, you lose. If it's the same, it's a tie.")
     print("8. Insurance bet is available if the dealer's face-up card is an Ace.")
     print("9. You can reset your balance or leave the game if you run out of money.")
-    print("10. You can view player stats and rankings from the main menu.\n")
+    print("10. You can view player stats and rankings from the main menu.")
+    print("11. Each action can be chosen during your turn: (H)it, (S)tand, (D)ouble Down, or (P) Split.")
+    print("12. Check the bet history and statistics for better strategies.\n")
 
 # Main function
 def main():
