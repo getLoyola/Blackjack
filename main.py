@@ -313,13 +313,56 @@ def display_game_summary(players):
         print(f"  Average Hand Value: {sum(calculate_hand_value(hand) for hand in player['hand_history']) / len(player['hand_history']) if player['hand_history'] else 0:.2f}")
         print()
 
+# Bank Deposit
+def deposit_money(player):
+    while True:
+        try:
+            amount = int(input(f"Enter amount to deposit (current balance: ${player['balance']}): "))
+            if amount > 0:
+                player['balance'] += amount
+                print(f"${amount} deposited. New balance: ${player['balance']}")
+                return player
+            else:
+                print("Deposit amount must be greater than 0.")
+        except ValueError:
+            print("Invalid amount. Please enter a number.")
+
+# Bank Withdrawal
+def withdraw_money(player):
+    while True:
+        try:
+            amount = int(input(f"Enter amount to withdraw (current balance: ${player['balance']}): "))
+            if 0 < amount <= player['balance']:
+                player['balance'] -= amount
+                print(f"${amount} withdrawn. New balance: ${player['balance']}")
+                return player
+            elif amount > player['balance']:
+                print("Insufficient balance.")
+            else:
+                print("Withdrawal amount must be greater than 0.")
+        except ValueError:
+            print("Invalid amount. Please enter a number.")
+
+# Customize Game Settings
+def customize_game_settings():
+    while True:
+        try:
+            min_bet = int(input("Enter minimum bet amount: "))
+            max_bet = int(input("Enter maximum bet amount: "))
+            if min_bet > 0 and max_bet >= min_bet:
+                return min_bet, max_bet
+            else:
+                print("Invalid bet amounts. Minimum bet must be greater than 0 and maximum bet must be at least equal to minimum bet.")
+        except ValueError:
+            print("Invalid amount. Please enter a number.")
+
 # Main function
 def main():
     players, num_decks = load_game_state()
     min_bet = 10
     max_bet = 1000
     while True:
-        action = input("Choose action: (P)lay, (A)dd player, (R)emove player, (C)hange deck count, (H)elp, (S)ummary, or (Q)uit: ").strip().upper()
+        action = input("Choose action: (P)lay, (A)dd player, (R)emove player, (C)hange deck count, (H)elp, (S)ummary, (B)ank, (G)ame settings, or (Q)uit: ").strip().upper()
         if action == 'P':
             for player in players:
                 if player['balance'] <= 0:
@@ -357,13 +400,28 @@ def main():
             display_instructions()
         elif action == 'S':
             display_game_summary(players)
+        elif action == 'B':
+            while True:
+                bank_action = input("(D)eposit, (W)ithdraw, or (E)xit: ").strip().upper()
+                if bank_action == 'D':
+                    for player in players:
+                        player = deposit_money(player)
+                elif bank_action == 'W':
+                    for player in players:
+                        player = withdraw_money(player)
+                elif bank_action == 'E':
+                    break
+                else:
+                    print("Invalid action.")
+        elif action == 'G':
+            min_bet, max_bet = customize_game_settings()
         elif action == 'Q':
-            display_stats(players)
-            display_rankings(players)
             print("Saving game state...")
             save_game_state(players, num_decks)
             print("Game state saved. Exiting...")
-            return
+            break
+        else:
+            print("Invalid action. Please choose a valid option.")
 
 if __name__ == '__main__':
     main()
