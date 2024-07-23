@@ -313,6 +313,80 @@ def display_game_summary(players):
         print(f"  Average Hand Value: {sum(calculate_hand_value(hand) for hand in player['hand_history']) / len(player['hand_history']) if player['hand_history'] else 0:.2f}")
         print()
 
+# Function to calculate the dealer's blackjack bonus
+def calculate_blackjack_bonus(balance, bet):
+    blackjack_bonus = bet * 0.5  # 50% bonus for blackjack
+    return balance + blackjack_bonus
+
+# Function to add a new card type
+def add_custom_card_type(deck, suit, value, card_value):
+    deck.append({'suit': suit, 'value': value, 'card_value': card_value})
+
+# Function to handle player interactions
+def handle_player_interactions(players):
+    while True:
+        interaction = input("Choose interaction: (V)iew player stats, (R)eset stats, (D)etailed player view, or (E)xit: ").strip().upper()
+        if interaction == 'V':
+            display_stats(players)
+        elif interaction == 'R':
+            for player in players:
+                player['wins'] = 0
+                player['losses'] = 0
+                player['ties'] = 0
+                player['total_winnings'] = 0
+                player['longest_win_streak'] = 0
+            print("Player stats have been reset.")
+        elif interaction == 'D':
+            player_name = input("Enter player's name for detailed view: ").strip()
+            player = next((p for p in players if p['name'] == player_name), None)
+            if player:
+                print(f"Detailed view for {player_name}:")
+                print(f"Balance: ${player['balance']}")
+                print(f"Bet History: {player['bet_history']}")
+                print(f"Games Played: {player['games_played']}")
+                print(f"Longest Winning Streak: {player['longest_win_streak']}")
+            else:
+                print("Player not found.")
+        elif interaction == 'E':
+            break
+        else:
+            print("Invalid interaction. Please choose a valid option.")
+
+# Function to display customized messages based on player's current balance
+def display_balance_message(player):
+    balance = player['balance']
+    if balance <= 50:
+        print(f"{player['name']}, you have a very low balance! Consider depositing more funds.")
+    elif balance <= 200:
+        print(f"{player['name']}, your balance is getting low. Manage your bets carefully.")
+    elif balance > 2000:
+        print(f"{player['name']}, you have a high balance! Great job managing your funds.")
+
+# Function to simulate a tournament mode
+def play_tournament(players, num_decks, min_bet, max_bet, rounds=5):
+    tournament_results = {player['name']: {'wins': 0, 'losses': 0, 'ties': 0} for player in players}
+    for round_num in range(rounds):
+        print(f"\nTournament Round {round_num + 1}")
+        for player in players:
+            if player['balance'] <= 0:
+                player = handle_bankruptcy(player)
+                if player is None:
+                    players.remove(player)
+                    continue
+            print(f"\n{player['name']}'s turn:")
+            player = play_round(player, num_decks, min_bet, max_bet)
+            result = player['balance'] - 1000  # Example result calculation
+            if result > 0:
+                tournament_results[player['name']]['wins'] += 1
+            elif result < 0:
+                tournament_results[player['name']]['losses'] += 1
+            else:
+                tournament_results[player['name']]['ties'] += 1
+            save_game_state(players, num_decks)
+    print("\nTournament Results:")
+    for player_name, result in tournament_results.items():
+        print(f"{player_name} - Wins: {result['wins']}, Losses: {result['losses']}, Ties: {result['ties']}")
+
 # Bank Deposit
 def deposit_money(player):
     while True:
