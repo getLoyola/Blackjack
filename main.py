@@ -430,13 +430,64 @@ def customize_game_settings():
         except ValueError:
             print("Invalid amount. Please enter a number.")
 
-# Main function
+# Function to simulate different game scenarios
+def simulate_scenarios(players, num_decks, min_bet, max_bet):
+    scenarios = ['High bets', 'Low bets', 'Multiple splits', 'Double downs']
+    for scenario in scenarios:
+        print(f"\nSimulating scenario: {scenario}")
+        for player in players:
+            if player['balance'] <= 0:
+                player = handle_bankruptcy(player)
+                if player is None:
+                    players.remove(player)
+                    continue
+            print(f"\n{player['name']}'s turn:")
+            if scenario == 'High bets':
+                bet = max_bet
+            elif scenario == 'Low bets':
+                bet = min_bet
+            elif scenario == 'Multiple splits':
+                # Handle multiple splits scenario
+                pass
+            elif scenario == 'Double downs':
+                # Handle double downs scenario
+                pass
+            player = play_round(player, num_decks, min_bet, max_bet)
+            save_game_state(players, num_decks)
+
+# Function to track player performance over time
+def track_performance_over_time(players):
+    for player in players:
+        player['performance_history'] = player.get('performance_history', [])
+        player['performance_history'].append({
+            'date': time.strftime("%Y-%m-%d %H:%M:%S"),
+            'balance': player['balance'],
+            'games_played': player['games_played'],
+            'total_winnings': player['total_winnings']
+        })
+        print(f"Performance history for {player['name']}:")
+        for record in player['performance_history']:
+            print(f"Date: {record['date']}, Balance: ${record['balance']}, Games Played: {record['games_played']}, Total Winnings: ${record['total_winnings']}")
+
+# Function to view detailed statistics
+def view_detailed_statistics(players):
+    for player in players:
+        print(f"\nDetailed Statistics for {player['name']}:")
+        print(f"Total Bets: ${sum(player['bet_history'])}")
+        print(f"Total Wins: ${player['total_winnings']}")
+        print(f"Total Games Played: {player['games_played']}")
+        print(f"Average Bet Amount: ${sum(player['bet_history']) / len(player['bet_history']) if player['bet_history'] else 0:.2f}")
+        print(f"Current Balance: ${player['balance']}")
+        print(f"Longest Winning Streak: {player['longest_win_streak']}")
+        print(f"Bet History: {player['bet_history']}")
+
+# Modify the main function to include new options
 def main():
     players, num_decks = load_game_state()
     min_bet = 10
     max_bet = 1000
     while True:
-        action = input("Choose action: (P)lay, (A)dd player, (R)emove player, (C)hange deck count, (H)elp, (S)ummary, (B)ank, (G)ame settings, or (Q)uit: ").strip().upper()
+        action = input("Choose action: (P)lay, (A)dd player, (R)emove player, (C)hange deck count, (H)elp, (S)ummary, (B)ank, (G)ame settings, (T)ournament, (M)simulate scenarios, (L)earn more stats, or (Q)uit: ").strip().upper()
         if action == 'P':
             for player in players:
                 if player['balance'] <= 0:
@@ -489,6 +540,12 @@ def main():
                     print("Invalid action.")
         elif action == 'G':
             min_bet, max_bet = customize_game_settings()
+        elif action == 'T':
+            play_tournament(players, num_decks, min_bet, max_bet)
+        elif action == 'M':
+            simulate_scenarios(players, num_decks, min_bet, max_bet)
+        elif action == 'L':
+            view_detailed_statistics(players)
         elif action == 'Q':
             print("Saving game state...")
             save_game_state(players, num_decks)
@@ -498,4 +555,5 @@ def main():
             print("Invalid action. Please choose a valid option.")
 
 if __name__ == '__main__':
+    import time
     main()
